@@ -1,0 +1,60 @@
+services:
+  ac-database:
+    platform: linux/amd64
+    volumes:
+      - ${DOCKER_VOL_DB:-ac-database}:/var/lib/mysql
+      - ./scripts/db-init:/docker-entrypoint-initdb.d
+
+  ac-db-import:
+    platform: linux/amd64
+    environment:
+      AC_PLAYERBOTS_DATABASE_INFO: "ac-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};acore_playerbots"
+    volumes:
+      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/azerothcore/env/dist/etc
+      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/azerothcore/env/dist/logs:delegated
+      - ./modules:/azerothcore/modules:ro
+
+  ac-module-import:
+    image: mysql:8.4
+    platform: linux/amd64
+    networks:
+      - ac-network
+    volumes:
+      - ./modules:/modules:ro
+      - ./scripts/import-modules.sh:/import-modules.sh:ro
+    environment:
+      DOCKER_DB_ROOT_PASSWORD: ${DOCKER_DB_ROOT_PASSWORD:-password}
+    command: bash /import-modules.sh
+    depends_on:
+      ac-database:
+        condition: service_healthy
+      ac-db-import:
+        condition: service_completed_successfully
+
+  ac-worldserver:
+    platform: linux/amd64
+    image: ghcr.io/ilarion-tokarskyi/ac-wotlk-worldserver:16.0.0-dev
+    environment:
+      AC_AI_PLAYERBOT_RANDOM_BOT_AUTOLOGIN: "1"
+      AC_AI_PLAYERBOT_MIN_RANDOM_BOTS: "1"
+      AC_AI_PLAYERBOT_MAX_RANDOM_BOTS: "10"
+    volumes:
+      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/azerothcore/env/dist/etc
+      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/azerothcore/env/dist/logs:delegated
+      - ${DOCKER_VOL_DATA:-ac-client-data}:/azerothcore/env/dist/data/:ro
+      - ./modules:/azerothcore/modules:ro
+    depends_on:
+      ac-module-import:
+        condition: service_completed_successfully
+
+  ac-authserver:
+    platform: linux/amd64
+
+  ac-client-data-init:
+    platform: linux/amd64
+
+  ac-tools:
+    platform: linux/amd64
+
+  ac-dev-server:
+    platform: linux/amd64

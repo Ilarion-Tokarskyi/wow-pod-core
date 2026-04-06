@@ -19,6 +19,11 @@
 !/var/ccache/.gitkeep
 /env/dist/*
 !/env/dist/.gitkeep
+!/env/dist/etc
+/env/dist/etc/*
+!/env/dist/etc/modules
+/env/dist/etc/modules/*
+!/env/dist/etc/modules/*.conf
 /env/user/*
 /.env*
 /apps/joiner
@@ -28,6 +33,7 @@
 !/src/server/scripts/Custom/README.md
 
 /*.override.yml
+!/docker-compose.override.yml
 /*.override.yaml
 
 !.gitkeep
