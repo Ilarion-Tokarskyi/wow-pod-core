@@ -4,3 +4,6 @@
 [submodule "modules/mod-autobalance"]
 	path = modules/mod-autobalance
 	url = https://github.com/azerothcore/mod-autobalance
+[submodule "modules/mod-playerbots"]
+	path = modules/mod-playerbots
+	url = https://github.com/mod-playerbots/mod-playerbots.git
