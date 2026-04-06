@@ -1,0 +1,6 @@
+[submodule "modules/mod-individual-progression"]
+	path = modules/mod-individual-progression
+	url = https://github.com/ZhengPeiRu21/mod-individual-progression
+[submodule "modules/mod-autobalance"]
+	path = modules/mod-autobalance
+	url = https://github.com/azerothcore/mod-autobalance

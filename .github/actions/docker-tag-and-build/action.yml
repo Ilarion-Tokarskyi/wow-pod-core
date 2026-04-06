@@ -17,6 +17,14 @@ inputs:
     description: dockerfile to use
     required: false
     default: apps/docker/Dockerfile
+  image-registry:
+    description: registry/org prefix for the image (eg ghcr.io/myuser or acore)
+    required: false
+    default: acore
+  platforms:
+    description: target platforms for the build (eg linux/amd64,linux/arm64)
+    required: false
+    default: linux/amd64
 runs:
   using: composite
   steps:
@@ -24,7 +32,7 @@ runs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: acore/ac-wotlk-${{ inputs.component-name }}
+        images: ${{ inputs.image-registry }}/ac-wotlk-${{ inputs.component-name }}
         tags: |
           type=raw,value=${{ inputs.version }}
           type=ref,event=branch
@@ -37,6 +45,7 @@ runs:
         push: ${{ inputs.push }}
         tags: ${{ steps.meta.outputs.tags }}
         target:  ${{ inputs.component-name }}
+        platforms: ${{ inputs.platforms }}
         build-args: |
           USER_ID=1000
           GROUP_ID=1000

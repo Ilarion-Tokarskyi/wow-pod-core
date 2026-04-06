@@ -2,11 +2,12 @@ name: docker-build
 on:
   push:
     branches:
-      - 'master'
+      - 'Playerbot'
   pull_request:
     types:
       - labeled
       - synchronize
+  workflow_dispatch:
 
 concurrency:
   # One concurrency group per workflow + ref.
@@ -22,16 +23,19 @@ concurrency:
 env:
   COMPOSE_DOCKER_CLI_BUILD: 1
   DOCKER_BUILDKIT: 1
-  RUNNING_ON_PRIMARY_BRANCH: |
-    ${{ (github.repository == 'mod-playerbots/azerothcore-wotlk' && github.ref_name == 'master') && 'true' || 'false' }}
+  RUNNING_ON_PRIMARY_BRANCH: ${{ github.ref_name == 'Playerbot' && 'true' || 'false' }}
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  BUILD_PLATFORMS: linux/amd64
 
 jobs:
   build-containers:
     runs-on: "ubuntu-latest"
+    permissions:
+      contents: read
+      packages: write
     if: |
-      github.repository == 'mod-playerbots/azerothcore-wotlk'
-      && !github.event.pull_request.draft
-      && (github.ref_name == 'master' || contains(github.event.pull_request.labels.*.name, 'run-build') || github.event.label.name == 'run-build')
+      !github.event.pull_request.draft
+      && (github.ref_name == 'Playerbot' || github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-build') || github.event.label.name == 'run-build')
     steps:
       - name: Free up disk space
         run: |
@@ -41,25 +45,16 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
 
       - uses: actions/checkout@v4
-
-      # The containers created in this workflow are used by
-      # acore-docker, which has a dependency on mod-ale.
-      #
-      # If you're wanting containers without mod-ale, the best solution is to
-      # build them locally (such as with `docker compose build`)
-      - name: Download Eluna
-        if: github.repository == 'azerothcore/azerothcore-wotlk' && github.ref_name == 'master'
-        uses: actions/checkout@v4
         with:
-          repository: azerothcore/mod-ale
-          path: modules/mod-ale
+          submodules: recursive
 
-      - name: Login to Docker Hub
-        if: github.repository == 'azerothcore/azerothcore-wotlk' && github.ref_name == 'master'
-        uses: docker/login-action@v1
+      - name: Login to GitHub Container Registry
+        if: env.RUNNING_ON_PRIMARY_BRANCH == 'true'
+        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get version
         id: version
@@ -76,6 +71,8 @@ jobs:
           component-name: worldserver
           version: ${{ steps.version.outputs.version }}
           push: ${{ env.RUNNING_ON_PRIMARY_BRANCH }}
+          image-registry: ${{ env.IMAGE_REGISTRY }}
+          platforms: ${{ env.BUILD_PLATFORMS }}
 
       - name: build authserver
         uses: ./.github/actions/docker-tag-and-build
@@ -83,6 +80,8 @@ jobs:
           component-name: authserver
           version: ${{ steps.version.outputs.version }}
           push: ${{ env.RUNNING_ON_PRIMARY_BRANCH }}
+          image-registry: ${{ env.IMAGE_REGISTRY }}
+          platforms: ${{ env.BUILD_PLATFORMS }}
 
       - name: build db-import
         uses: ./.github/actions/docker-tag-and-build
@@ -90,6 +89,8 @@ jobs:
           component-name: db-import
           version: ${{ steps.version.outputs.version }}
           push: ${{ env.RUNNING_ON_PRIMARY_BRANCH }}
+          image-registry: ${{ env.IMAGE_REGISTRY }}
+          platforms: ${{ env.BUILD_PLATFORMS }}
 
       - name: build client-data
         uses: ./.github/actions/docker-tag-and-build
@@ -97,6 +98,8 @@ jobs:
           component-name: client-data
           version: ${{ steps.version.outputs.version }}
           push: ${{ env.RUNNING_ON_PRIMARY_BRANCH }}
+          image-registry: ${{ env.IMAGE_REGISTRY }}
+          platforms: ${{ env.BUILD_PLATFORMS }}
 
       - name: build tools
         uses: ./.github/actions/docker-tag-and-build
@@ -104,6 +107,8 @@ jobs:
           component-name: tools
           version: ${{ steps.version.outputs.version }}
           push: ${{ env.RUNNING_ON_PRIMARY_BRANCH }}
+          image-registry: ${{ env.IMAGE_REGISTRY }}
+          platforms: ${{ env.BUILD_PLATFORMS }}
 
       - name: build dev-server
         uses: ./.github/actions/docker-tag-and-build
@@ -111,17 +116,6 @@ jobs:
           component-name: dev
           version: ${{ steps.version.outputs.version }}
           push: ${{ env.RUNNING_ON_PRIMARY_BRANCH }}
+          image-registry: ${{ env.IMAGE_REGISTRY }}
+          platforms: ${{ env.BUILD_PLATFORMS }}
           dockerfile: apps/docker/Dockerfile.dev-server
-
-      - name: Trigger acore-docker CI
-        if: github.repository == 'azerothcore/azerothcore-wotlk' && github.ref_name == 'master'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.ACORE_DOCKER_REPO_ACCESS_TOKEN }}
-          repository: azerothcore/acore-docker
-          event-type: azerothcore-new-images
-          client-payload: >
-            {
-              "ref": "${{ github.ref_name }}",
-              "sha": "${{ github.sha }}"
-            }

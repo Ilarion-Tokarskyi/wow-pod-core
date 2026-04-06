@@ -10,6 +10,8 @@
 !/modules/CMakeLists.txt
 !/modules/*.h
 !/modules/*.cmake
+!modules/mod-individual-progression
+!modules/mod-autobalance
 /build*/
 /var/*
 !/var/build/.gitkeep
